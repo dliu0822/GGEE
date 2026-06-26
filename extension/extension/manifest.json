@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "AI Usage Tracker",
+  "version": "1.0.0",
+  "description": "Tracks Claude and Gemini usage limits and reset times.",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content-claude.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content-gemini.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
