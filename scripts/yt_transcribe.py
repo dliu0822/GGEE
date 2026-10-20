@@ -13,6 +13,7 @@
   python scripts/yt_transcribe.py "https://www.youtube.com/watch?v=K6B-imCYvO0"
   python scripts/yt_transcribe.py URL --whisper --model medium --lang zh
   python scripts/yt_transcribe.py URL -o transcripts
+  python scripts/yt_transcribe.py URL1 URL2 URL3   # 一次轉多支
 """
 
 import argparse
@@ -142,21 +143,29 @@ def write_outputs(info: dict, url: str, segments, source: str, outdir: str):
 
 def main():
     p = argparse.ArgumentParser(description="YouTube 影片轉文字（.txt + .md）")
-    p.add_argument("url")
+    p.add_argument("urls", nargs="+", metavar="URL")
     p.add_argument("-o", "--outdir", default="transcripts")
     p.add_argument("--whisper", action="store_true", help="略過 YouTube 字幕，強制用 Whisper 辨識")
     p.add_argument("--model", default="small", help="Whisper 模型：tiny/base/small/medium/large-v3")
     p.add_argument("--lang", default=None, help="語言代碼，例如 zh、en（預設自動偵測）")
     args = p.parse_args()
 
-    info = fetch_info(args.url)
-    with tempfile.TemporaryDirectory() as workdir:
-        segments, source = (None, None) if args.whisper else try_subtitles(args.url, info, workdir)
-        if not segments:
-            segments, source = whisper_transcribe(args.url, workdir, args.model, args.lang)
-
-    txt, md = write_outputs(info, args.url, segments, source, args.outdir)
-    print(f"完成（{source}）：\n  {txt}\n  {md}")
+    failed = []
+    for url in args.urls:
+        print(f"處理：{url}", file=sys.stderr)
+        try:
+            info = fetch_info(url)
+            with tempfile.TemporaryDirectory() as workdir:
+                segments, source = (None, None) if args.whisper else try_subtitles(url, info, workdir)
+                if not segments:
+                    segments, source = whisper_transcribe(url, workdir, args.model, args.lang)
+            txt, md = write_outputs(info, url, segments, source, args.outdir)
+            print(f"完成（{source}）：\n  {txt}\n  {md}")
+        except Exception as e:
+            print(f"失敗：{url}：{e}", file=sys.stderr)
+            failed.append(url)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
